@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.feature_selection import RFECV
 from sklearn.metrics import confusion_matrix
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
@@ -33,120 +34,119 @@ def read_data(file_name):
     return input_data
 
 
-def convert_class(raw):
-    if raw == '14-16':
-        return 0
-    elif raw == '24-26':
-        return 1
-    elif raw == '34-36':
-        return 2
-    elif raw == '44-46':
-        return 3
+def read_id(file_name):
+    f = open(file_name, 'r', encoding='utf-8')
+    id_lst = []
 
-
-def convert_dict(file_name):
-    X = []
-    f = open(file_name, 'r')
     for line in f.readlines():
-        if not line.rstrip:
-            continue
-        attribute = line.rstrip().split(",")[1:-1]
-        this = {}
-        count = 0
-        for word in top_word_list:
-            this[word] = int(attribute[count])
-            count += 1
-        X.append(this)
+        row = line.rstrip().split(',')
+        id_lst.append(row[0])
     f.close()
-    return X
+    return id_lst
+
+
+def preprocess(id_lst, X_lst, y_lst):
+    X_dict = {x: [0 for i in range(30)] for x in id_lst}
+    y_dict = {}
+
+    for i in range(len(id_lst)):
+        X_dict[id_lst[i]] += X_lst[i]
+        y_dict[id_lst[i]] = y_lst[i]
+
+    id_set = [k for k in X_dict.keys()]
+    X = [v.tolist() for v in X_dict.values()]
+    y = [v for v in y_dict.values()]
+
+    return id_set, X, y
+
+
+def convert_back(y_pred, id_lst, id_set):
+    pred_dict = {}
+
+    for i in range(len(id_set)):
+        pred_dict[id_set[i]] = y_pred[i]
+
+    y_new_pred = []
+    for i in range(len(id_lst)):
+        y_new_pred.append(pred_dict[id_lst[i]])
+
+    return y_new_pred
+
+
+def prediction(index, y_pred, file_name):
+    df = pd.DataFrame()
+    df['Id'] = index
+    df['Prediction'] = y_pred
+    df.to_csv(file_name, sep=',', index=False)
 
 
 # --- train data - train_top10.csv
-file_name = top_file_dict['train']
-data_train = read_data(file_name)
-X_train = data_train.iloc[:, 1:-1]
-y_train = data_train.iloc[:, -1]
-# new_X = convert_dict(file_name)
-# vec = DictVectorizer()
-# X_train = vec.fit_transform(new_X).toarray()
+train_top = top_file_dict['train']
+train_raw = raw_file_dict['train']
+train_id = read_id(train_raw)
+train_data = np.genfromtxt(train_top, delimiter=',', dtype='str')
+X_train = train_data[:, 1:-1].astype(int)
+y_train = train_data[:, -1]
 
-# count = 0
-# for index, row in X_train.iterrows():
-#     allzero = False
-#     for word in top_word_list:
-#         if row[word] != 0:
-#             allzero = True
-#     if not allzero:
-#         count += 1
-# print(count, len(X_train))
+train_id_set, X_new_train, y_new_train = preprocess(train_id, X_train, y_train)
 
-# --- test data - dev_top10.csv
-file_name = top_file_dict['dev']
-data_test = read_data(file_name)
-X_test = data_test.iloc[:, 1:-1]
-y_test = data_test.iloc[:, -1]
-# new_X = convert_dict(file_name)
-# vec = DictVectorizer()
-# X_test = vec.fit_transform(new_X).toarray()
+# --- dev data - dev_top10.csv
+dev_top = top_file_dict['dev']
+dev_raw = raw_file_dict['dev']
+dev_id = read_id(dev_raw)
+dev_data = np.genfromtxt(dev_top, delimiter=',', dtype='str')
+X_dev = dev_data[:, 1:-1].astype(int)
+y_dev = dev_data[:, -1]
 
-# X_train = pd.concat([X_train, X_test])
-# y_train = pd.concat([y_train, y_test])
+dev_id_set, X_new_dev, y_new_dev = preprocess(dev_id, X_dev, y_dev)
 
-# X = data_train.iloc[:, 1:-1]
-# y = data_train.iloc[:, -1]
-# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1)
+# --- test data - test_top10.csv
+test_top = top_file_dict['test']
+test_raw = raw_file_dict['test']
+test_id = read_id(test_raw)
+test_data = np.genfromtxt(test_top, delimiter=',', dtype='str')
+X_test = test_data[:, 1:-1].astype(int)
+y_test = test_data[:, -1]
+test_index = test_data[:, 0].tolist()
+test_id_set, X_new_test, y_new_test = preprocess(test_id, X_test, y_test)
 
-# --- Zero - R --- 38%
-zero_r = DummyClassifier(strategy='most_frequent')
-zero_r.fit(X_train, y_train)
-print("Zero-R:", accuracy_score(zero_r.predict(X_test), y_test))
-# cross_val_score(zero_r, X, y, cv=10)
-
-# --- Decision Tree --- 43%
+# --- Decision Tree --- Dev
 dt = DecisionTreeClassifier(max_depth=None)
-dt.fit(X_train, y_train)
-print("Decision Tree:", dt.score(X_test, y_test))
-# y_pred_dt = dt.predict(X_test)
+dt.fit(X_new_train, y_new_train)
+y_dev_pred = dt.predict(X_new_dev)
+y_new_dev_pred = convert_back(y_dev_pred, dev_id, dev_id_set)
+print("Decision Tree (Dev):", accuracy_score(y_dev, y_new_dev_pred))
 
-# print(confusion_matrix(y_test, y_pred_dt))
-
-# --- Logistic Regression --- 42%
+# --- Logistic Regression --- Dev
 clf = LogisticRegression()
-clf.fit(X_train, y_train)
-print("Logistic:", clf.score(X_test, y_test))
-# y_pred_clf = clf.predict(X_test)
+clf.fit(X_new_train, y_new_train)
+y_dev_pred = clf.predict(X_new_dev)
+y_new_dev_pred = convert_back(y_dev_pred, dev_id, dev_id_set)
+print("Logistic Regression (Dev):", accuracy_score(y_dev, y_new_dev_pred))
 
-print('--- MLP start')
-from sklearn.neural_network import MLPClassifier
+# --- Logistic Regression --- Test
+# y_test_pred = clf.predict(X_new_test)
+# y_new_test_pred = convert_back(y_test_pred, test_id, test_id_set)
+# print("Logistic Regression (Test):", accuracy_score(y_test, y_new_test_pred))
 
+# --- MLP Classifier --- Dev
 clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(15, 2), random_state=1)
-# clf = MLPClassifier(solver='lbfgs', alpha=1e-5, random_state=1)
-print('--- MLP fit')
-clf.fit(X_train, y_train)
-print("MLP Classifier:", clf.score(X_test, y_test))
+clf.fit(X_new_train, y_new_train)
+y_dev_pred = clf.predict(X_new_dev)
+y_new_dev_pred = convert_back(y_dev_pred, dev_id, dev_id_set)
+print("MLP Classifier (Dev):", accuracy_score(y_dev, y_new_dev_pred))
 
+# --- MLP Classifier --- Test
+# y_test_pred = clf.predict(X_new_test)
+# y_new_test_pred = convert_back(y_test_pred, test_id, test_id_set)
+# print("MLP Classifier (Test):", accuracy_score(y_test, y_new_test_pred))
 
-# --- KNN
-# neigh = KNeighborsClassifier(n_neighbors=3)
-# neigh.fit(X_train, y_train)
-# print("KNN:", neigh.score(X_test, y_test))
+# prediction(test_index, y_new_test_pred, 'out-MLP.csv')
+
 
 ############################################
 
 # HELPER FUNCTION
-
-def prediction():
-    file_name = top_file_dict['test']
-    data_train = read_data(file_name)
-    index = data_train.iloc[:, 0]
-    X_pred = data_train.iloc[:, 1:-1]
-    y_pred = dt.predict(X_pred)
-
-    df = pd.DataFrame()
-    df['Id'] = index
-    df['Prediction'] = y_pred
-    df.to_csv('out.csv', sep=',', index=False)
-
 
 def feature_selection():
     # Build a classification task using 3 informative features
