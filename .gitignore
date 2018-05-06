@@ -1,6 +1,6 @@
-*.csv
 *.pdf
-README.txt
+*.csv
+*.txt
 
 # Created by https://www.gitignore.io/api/pycharm,jupyternotebook
 
