@@ -1,6 +1,9 @@
 *.pdf
 *.csv
 *.txt
+feature.py
+report_template
+train_feature_chiscores_top1000
 
 # Created by https://www.gitignore.io/api/pycharm,jupyternotebook
 

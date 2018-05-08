@@ -46,7 +46,7 @@ def read_id(file_name):
 
 
 def preprocess(id_lst, X_lst, y_lst):
-    X_dict = {x: [0 for i in range(30)] for x in id_lst}
+    X_dict = {x: [0 for i in range(len(X_lst))] for x in id_lst}
     y_dict = {}
 
     for i in range(len(id_lst)):
@@ -84,7 +84,7 @@ def prediction(index, y_pred, file_name):
 train_top = top_file_dict['train']
 train_raw = raw_file_dict['train']
 train_id = read_id(train_raw)
-train_data = np.genfromtxt(train_top, delimiter=',', dtype='str')
+train_data = read_data(train_top).as_matrix()
 X_train = train_data[:, 1:-1].astype(int)
 y_train = train_data[:, -1]
 
@@ -94,7 +94,7 @@ train_id_set, X_new_train, y_new_train = preprocess(train_id, X_train, y_train)
 dev_top = top_file_dict['dev']
 dev_raw = raw_file_dict['dev']
 dev_id = read_id(dev_raw)
-dev_data = np.genfromtxt(dev_top, delimiter=',', dtype='str')
+dev_data = read_data(dev_top).as_matrix()
 X_dev = dev_data[:, 1:-1].astype(int)
 y_dev = dev_data[:, -1]
 
