@@ -1,5 +1,5 @@
 # ML-Project2
 ---
 #### Prediction Score
-Decision Tree: 0.42819
-'?':  0.20419
+- Logistic Regression on 1000 features: 66.195%
+- Logistic Regression on 500 features: 64.600%
